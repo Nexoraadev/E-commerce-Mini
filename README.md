@@ -46,15 +46,24 @@ Aplikasi e-commerce berbasis web dengan dua sisi: **storefront pelanggan** dan *
 
 ## Struktur Database
 
-```
-users          → akun pelanggan & admin (role: ADMIN | CUSTOMER)
-categories     → kategori produk
-products       → produk (relasi ke categories)
-orders         → pesanan (relasi ke users)
-order_items    → item dalam pesanan (relasi ke orders & products)
-```
+Database di-host di **Supabase (PostgreSQL)**. Nama logical database sesuai requirement adalah **`ecommerce_mini`** — di Supabase, nama ini ada di `project name` saat pembuatan project. Schema lengkap ada di `database/schema.sql` dan `prisma/schema.prisma`.
 
-Database di-host di **Supabase (PostgreSQL)**. Schema lengkap ada di `prisma/schema.prisma`.
+**Tabel utama (sesuai requirement):**
+
+| Tabel di DB | Nama Requirement | Kolom Utama |
+|---|---|---|
+| `users` | Tabel Login | ID, UserName, Password, Nama_Lengkap |
+| `products` | Tabel Produk | ID, KodeProduk, NamaProduk, Kategori*, Harga, Stok |
+
+*Kolom Kategori diimplementasikan sebagai relasi ke tabel `categories` (foreign key `KategoriID`) untuk integritas data.
+
+**Tabel tambahan:**
+
+| Tabel | Fungsi |
+|---|---|
+| `categories` | Master data kategori produk |
+| `orders` | Merekam pesanan (Tabel Transaksi) |
+| `order_items` | Detail item per pesanan |
 
 ---
 

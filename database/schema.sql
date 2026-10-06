@@ -1,82 +1,213 @@
-create extension if not exists "pgcrypto";
+-- ============================================================
+-- MiniShop — Database Schema
+-- Nama database: ecommerce_mini (PostgreSQL via Supabase)
+-- ============================================================
+-- File ini bisa dijalankan di Supabase SQL Editor atau
+-- psql client untuk membuat ulang seluruh struktur database.
+-- ============================================================
 
-create table if not exists public.login (
-  id uuid primary key default gen_random_uuid(),
-  username varchar(100) not null unique,
-  password text,
-  nama_lengkap varchar(150) not null,
-  role varchar(20) not null default 'buyer' check (role in ('admin', 'buyer')),
-  avatar_url text,
-  created_at timestamptz not null default now()
+-- Hapus tabel lama jika ada (urutan terbalik karena foreign key)
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Hapus enum lama jika ada
+DROP TYPE IF EXISTS "Role" CASCADE;
+DROP TYPE IF EXISTS "OrderStatus" CASCADE;
+DROP TYPE IF EXISTS "PaymentStatus" CASCADE;
+
+
+-- ============================================================
+-- ENUM TYPES
+-- ============================================================
+
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'CUSTOMER');
+CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PAID', 'FAILED');
+
+
+-- ============================================================
+-- TABEL LOGIN (requirement: ID, UserName, Password, Nama_Lengkap)
+-- Nama tabel di DB: users
+-- ============================================================
+
+CREATE TABLE users (
+    id          VARCHAR(36)  PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "UserName"  VARCHAR(100) NOT NULL UNIQUE,
+    "Password"  TEXT         NOT NULL,
+    "Nama_Lengkap" VARCHAR(200) NOT NULL,
+    email       VARCHAR(200) NOT NULL UNIQUE,
+    role        "Role"       NOT NULL DEFAULT 'CUSTOMER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table if not exists public.produk (
-  id uuid primary key default gen_random_uuid(),
-  kode_produk varchar(50) not null unique,
-  nama_produk varchar(200) not null,
-  kategori varchar(100) not null,
-  harga numeric(12,2) not null check (harga >= 0),
-  stok integer not null default 0 check (stok >= 0),
-  foto_url text,
-  deskripsi text,
-  created_at timestamptz not null default now()
+COMMENT ON TABLE users IS 'Tabel Login — menyimpan akun admin dan customer';
+
+
+-- ============================================================
+-- TABEL KATEGORI
+-- ============================================================
+
+CREATE TABLE categories (
+    id          VARCHAR(36)  PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    name        VARCHAR(100) NOT NULL UNIQUE,
+    slug        VARCHAR(100) NOT NULL UNIQUE,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table if not exists public.transaksi (
-  id uuid primary key default gen_random_uuid(),
-  kode_transaksi varchar(50) not null unique,
-  user_id uuid references public.login(id) on delete set null,
-  total_harga numeric(12,2) not null check (total_harga >= 0),
-  bank varchar(50) not null check (bank in ('BCA', 'BRI', 'BNI', 'MANDIRI')),
-  virtual_account varchar(50) not null,
-  status varchar(20) not null default 'PENDING' check (status in ('PENDING', 'PAID', 'EXPIRED')),
-  created_at timestamptz not null default now()
+
+-- ============================================================
+-- TABEL PRODUK (requirement: ID, KodeProduk, NamaProduk, Kategori, Harga, Stok)
+-- Nama tabel di DB: products
+-- ============================================================
+
+CREATE TABLE products (
+    id           VARCHAR(36)    PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "KodeProduk" VARCHAR(50)    NOT NULL UNIQUE,
+    "NamaProduk" VARCHAR(200)   NOT NULL,
+    slug         VARCHAR(200)   NOT NULL UNIQUE,
+    "Harga"      DECIMAL(12, 2) NOT NULL CHECK ("Harga" >= 0),
+    "Stok"       INTEGER        NOT NULL DEFAULT 0 CHECK ("Stok" >= 0),
+    deskripsi    TEXT,
+    image        TEXT,                         -- URL foto produk (Supabase Storage)
+    "KategoriID" VARCHAR(36)    NOT NULL,
+    "createdAt"  TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"  TIMESTAMP(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_products_category
+        FOREIGN KEY ("KategoriID")
+        REFERENCES categories(id)
+        ON DELETE RESTRICT
 );
 
-create table if not exists public.detail_transaksi (
-  id uuid primary key default gen_random_uuid(),
-  transaksi_id uuid not null references public.transaksi(id) on delete cascade,
-  produk_id uuid not null references public.produk(id) on delete restrict,
-  jumlah integer not null check (jumlah > 0),
-  harga_satuan numeric(12,2) not null check (harga_satuan >= 0)
+COMMENT ON TABLE products IS 'Tabel Produk — kolom Kategori direlasikan ke tabel categories via KategoriID';
+COMMENT ON COLUMN products."KodeProduk" IS 'Kode unik produk, contoh: PRD-ELEC-001';
+COMMENT ON COLUMN products."NamaProduk" IS 'Nama tampil produk di katalog';
+COMMENT ON COLUMN products."Harga"      IS 'Harga satuan dalam Rupiah';
+COMMENT ON COLUMN products."Stok"       IS 'Jumlah stok fisik tersedia';
+
+
+-- ============================================================
+-- TABEL TRANSAKSI / ORDERS
+-- ============================================================
+
+CREATE TABLE orders (
+    id               VARCHAR(36)     PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "orderNumber"    VARCHAR(100)    NOT NULL UNIQUE,  -- format: ORD-{timestamp}-{random}
+    "userId"         VARCHAR(36)     NOT NULL,
+    "recipientName"  VARCHAR(200)    NOT NULL,
+    "recipientEmail" VARCHAR(200)    NOT NULL,
+    "recipientPhone" VARCHAR(50)     NOT NULL,
+    "shippingAddress" TEXT           NOT NULL,
+    notes            TEXT,
+    "paymentMethod"  VARCHAR(100)    NOT NULL,         -- Virtual Account / Bank Transfer / Cash
+    "paymentStatus"  "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "orderStatus"    "OrderStatus"   NOT NULL DEFAULT 'PENDING',
+    "totalAmount"    DECIMAL(12, 2)  NOT NULL,
+    "createdAt"      TIMESTAMP(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"      TIMESTAMP(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_orders_user
+        FOREIGN KEY ("userId")
+        REFERENCES users(id)
+        ON DELETE CASCADE
 );
 
-create table if not exists public.wishlist (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.login(id) on delete cascade,
-  produk_id uuid not null references public.produk(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  unique (user_id, produk_id)
+
+-- ============================================================
+-- TABEL DETAIL TRANSAKSI / ORDER ITEMS
+-- ============================================================
+
+CREATE TABLE order_items (
+    id          VARCHAR(36)    PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    "orderId"   VARCHAR(36)    NOT NULL,
+    "productId" VARCHAR(36)    NOT NULL,
+    quantity    INTEGER        NOT NULL CHECK (quantity > 0),
+    price       DECIMAL(12, 2) NOT NULL,     -- harga saat transaksi (snapshot)
+    subtotal    DECIMAL(12, 2) NOT NULL,
+
+    CONSTRAINT fk_order_items_order
+        FOREIGN KEY ("orderId")
+        REFERENCES orders(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_order_items_product
+        FOREIGN KEY ("productId")
+        REFERENCES products(id)
+        ON DELETE RESTRICT
 );
 
-create table if not exists public.review (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.login(id) on delete cascade,
-  produk_id uuid not null references public.produk(id) on delete cascade,
-  rating integer not null check (rating between 1 and 5),
-  komentar text,
-  created_at timestamptz not null default now()
-);
 
-create index if not exists idx_produk_kategori on public.produk(kategori);
-create index if not exists idx_produk_nama_produk on public.produk using gin (to_tsvector('simple', nama_produk));
-create index if not exists idx_transaksi_user_id on public.transaksi(user_id);
-create index if not exists idx_detail_transaksi_transaksi_id on public.detail_transaksi(transaksi_id);
+-- ============================================================
+-- INDEX — mempercepat query yang sering dipakai
+-- ============================================================
 
-alter table public.login enable row level security;
-alter table public.produk enable row level security;
-alter table public.transaksi enable row level security;
-alter table public.detail_transaksi enable row level security;
-alter table public.wishlist enable row level security;
-alter table public.review enable row level security;
+CREATE INDEX idx_products_kategori  ON products("KategoriID");
+CREATE INDEX idx_products_slug      ON products(slug);
+CREATE INDEX idx_orders_user        ON orders("userId");
+CREATE INDEX idx_orders_status      ON orders("orderStatus");
+CREATE INDEX idx_order_items_order  ON order_items("orderId");
 
-create policy "Produk readable by everyone" on public.produk for select using (true);
-create policy "Login readable by authenticated users" on public.login for select to authenticated using (true);
-create policy "Transaksi readable by authenticated users" on public.transaksi for select to authenticated using (true);
-create policy "Detail transaksi readable by authenticated users" on public.detail_transaksi for select to authenticated using (true);
 
-insert into public.produk (kode_produk, nama_produk, kategori, harga, stok, foto_url, deskripsi) values
-('PRD-001', 'Headphone Wireless Premium', 'Elektronik', 350000, 15, null, 'Headphone bluetooth dengan kualitas suara jernih.'),
-('PRD-002', 'Sneakers Casual Putih', 'Fashion', 425000, 8, null, 'Sepatu casual nyaman untuk kegiatan harian.'),
-('PRD-003', 'Tas Ransel Laptop', 'Aksesoris', 275000, 12, null, 'Tas laptop anti air dengan banyak kompartemen.')
-on conflict (kode_produk) do nothing;
+-- ============================================================
+-- DATA AWAL (SEED)
+-- ============================================================
+
+-- Kategori
+INSERT INTO categories (id, name, slug) VALUES
+    ('cat-elec-001', 'Electronics',  'electronics'),
+    ('cat-fash-001', 'Fashion',      'fashion'),
+    ('cat-food-001', 'Food',         'food'),
+    ('cat-accs-001', 'Accessories',  'accessories')
+ON CONFLICT (slug) DO NOTHING;
+
+-- Admin & Customer (password: "password", di-hash dengan bcrypt 10 rounds)
+-- Hash di bawah adalah nilai bcrypt dari string "password"
+INSERT INTO users (id, "UserName", "Password", "Nama_Lengkap", email, role) VALUES
+    (
+        'usr-admin-001',
+        'admin',
+        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+        'Administrator',
+        'admin@minicommerce.test',
+        'ADMIN'
+    ),
+    (
+        'usr-cust-001',
+        'customer',
+        '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+        'Customer Tester',
+        'customer@minicommerce.test',
+        'CUSTOMER'
+    )
+ON CONFLICT (email) DO NOTHING;
+
+-- Produk
+INSERT INTO products (id, "KodeProduk", "NamaProduk", slug, "Harga", "Stok", deskripsi, "KategoriID") VALUES
+    ('prd-001', 'PRD-ELEC-001', 'Laptop Gaming Pro 15 inch',    'laptop-gaming-pro-15-inch',    14999000, 10, 'Laptop gaming performa tinggi dengan prosesor generasi terbaru.', 'cat-elec-001'),
+    ('prd-002', 'PRD-ELEC-002', 'Smartphone Flagship 5G',        'smartphone-flagship-5g',        8499000, 15, 'Smartphone dengan kamera 108MP dan layar AMOLED 120Hz.',          'cat-elec-001'),
+    ('prd-003', 'PRD-ELEC-003', 'Headphone Wireless ANC',        'headphone-wireless-anc',        1299000, 20, 'Headphone nirkabel dengan Active Noise Cancellation.',            'cat-elec-001'),
+    ('prd-004', 'PRD-FASH-001', 'Jaket Hoodie Premium',          'jaket-hoodie-premium',           349000, 30, 'Jaket hoodie berbahan fleecy hangat untuk sehari-hari.',           'cat-fash-001'),
+    ('prd-005', 'PRD-FASH-002', 'Sepatu Sneakers Casual',        'sepatu-sneakers-casual',         599000, 25, 'Sneakers minimalis dengan insole empuk dan sol karet tahan lama.', 'cat-fash-001'),
+    ('prd-006', 'PRD-FASH-003', 'Kemeja Denim Slim Fit',         'kemeja-denim-slim-fit',          279000, 18, 'Kemeja denim kasual dengan potongan slim fit modern.',             'cat-fash-001'),
+    ('prd-007', 'PRD-FOOD-001', 'Kopi Arabika Gayo 500g',        'kopi-arabika-gayo-500g',          85000, 50, 'Biji kopi sangrai asli Aceh Gayo dengan cita rasa fruity.',        'cat-food-001'),
+    ('prd-008', 'PRD-FOOD-002', 'Cokelat Artisan Dark 70%',      'cokelat-artisan-dark-70percent',  45000, 60, 'Cokelat hitam organik buatan tangan tanpa bahan pengawet.',        'cat-food-001'),
+    ('prd-009', 'PRD-ACCS-001', 'Jam Tangan Minimalis Classic',  'jam-tangan-minimalis-classic',   899000, 12, 'Jam tangan bermesin kuarsa dengan tali kulit asli.',               'cat-accs-001'),
+    ('prd-010', 'PRD-ACCS-002', 'Tas Ransel Waterproof',         'tas-ransel-waterproof',           399000, 22, 'Tas ransel multifungsi tahan air dengan slot laptop 15.6 inch.',   'cat-accs-001')
+ON CONFLICT ("KodeProduk") DO NOTHING;
+
+
+-- ============================================================
+-- CATATAN PENGGUNAAN
+-- ============================================================
+-- 1. File ini untuk referensi struktur dan seed data awal.
+-- 2. Dalam proyek ini, migrasi dikelola oleh Prisma ORM.
+--    Untuk setup via Prisma: jalankan `npx prisma db push`
+--    kemudian `npx prisma db seed`.
+-- 3. Untuk menjalankan file ini langsung di Supabase:
+--    Buka Supabase Dashboard → SQL Editor → New query → paste → Run.
+-- ============================================================
