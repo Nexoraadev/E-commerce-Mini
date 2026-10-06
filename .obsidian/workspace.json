@@ -1,0 +1,240 @@
+{
+  "main": {
+    "id": "782f9f53bd898161",
+    "type": "split",
+    "children": [
+      {
+        "id": "d3b2be0d14e88f90",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7c9046a428c36623",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "PRD.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "PRD"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "bfdda45434f65776",
+    "type": "split",
+    "children": [
+      {
+        "id": "e4ed1130914b7189",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d3bc34487ad91eea",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "7968d99399edd43f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "13d82a0a683635e4",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "c2c1fcb01130c707",
+    "type": "split",
+    "children": [
+      {
+        "id": "e46b233afd1d0296",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5e2fa712f90e8dfc",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "PRD.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "b2aa644c66ae548b",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "PRD.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "c54d69a44da9c620",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "125ee62bbdd3e914",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "7ee38d0b8baea6f2",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "PRD.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "7c9046a428c36623",
+  "lastOpenFiles": [
+    "docs/ARCHITECTURE.md",
+    "docs/MANUAL.md",
+    "docs/INSTALL.md",
+    "docs",
+    "src/app/admin/profile/page.tsx",
+    "src/app/admin/profile",
+    "src/app/admin/settings/page.tsx",
+    "src/app/admin/settings",
+    "node_modules/zod/package.json",
+    "src/app/admin/products/[id]/page.tsx",
+    "src/app/admin/products/[id]",
+    "src/app/admin/customers/page.tsx",
+    "src/app/admin/customers",
+    "node_modules/run-parallel/README.md",
+    "node_modules/resolve-pkg-maps/README.md",
+    "node_modules/resolve-from/readme.md",
+    "node_modules/yocto-queue/readme.md",
+    "node_modules/update-browserslist-db/README.md",
+    "node_modules/type-check/README.md",
+    "node_modules/side-channel-list/README.md",
+    "node_modules/side-channel-list/CHANGELOG.md",
+    "node_modules/shebang-regex/readme.md",
+    "node_modules/queue-microtask/README.md",
+    "node_modules/path-parse/README.md",
+    "node_modules/path-exists/readme.md",
+    "node_modules/parent-module/readme.md",
+    "node_modules/object.assign/README.md",
+    "node_modules/object.assign/CHANGELOG.md",
+    "node_modules/object-assign/readme.md",
+    "node_modules/esbuild-register/README.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/webVitalsAttribution.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/webpack.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/useTypeScriptCli.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/useLightningcss.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/urlImports.md",
+    "node_modules/next/dist/docs/02-pages/04-api-reference/04-config/01-next-config-js/typescript.md",
+    "node_modules/prisma/build/public/assets/tick.8cbb6a93.svg",
+    "node_modules/prisma/build/public/assets/string.ea615a24.svg",
+    "node_modules/prisma/build/public/assets/tick-indeterminate.aec8a44d.svg",
+    "node_modules/prisma/build/public/assets/sun.89774753.svg",
+    "node_modules/prisma/build/public/assets/settings.5ad25af2.svg",
+    "node_modules/prisma/build/public/assets/search.2ed766ce.svg",
+    "node_modules/prisma/build/public/assets/refresh.d5448ccc.svg",
+    "node_modules/prisma/build/public/assets/play.8811691e.svg",
+    "node_modules/prisma/build/public/assets/plus.8fbf7ad3.svg",
+    "node_modules/prisma/build/public/assets/number.85ddf96b.svg"
+  ]
+}

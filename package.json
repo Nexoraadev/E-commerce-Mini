@@ -1,0 +1,61 @@
+{
+  "name": "e-commers",
+  "version": "1.0.0",
+  "description": "Aplikasi e-commerce sederhana (mobile-first) dengan fitur utama katalog produk, manajemen produk (CRUD Admin), serta checkout pesanan dengan simulasi Virtual Account. Dibuat menggunakan Next.js (App Router), TypeScript, Tailwind CSS, dan Supabase untuk memenuhi kriteria tes coding Programmer.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "@radix-ui/react-dialog": "^1.2.0",
+    "@radix-ui/react-label": "^2.1.16",
+    "@radix-ui/react-select": "^2.3.8",
+    "@radix-ui/react-slot": "^1.4.0",
+    "@radix-ui/react-toast": "^1.2.24",
+    "@supabase/supabase-js": "^2.117.2",
+    "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jose": "^6.2.12",
+    "lucide-react": "^1.52.0",
+    "next": "^16.3.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-hook-form": "^7.89.0",
+    "slugify": "^1.6.9",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^9.39.5",
+    "@prisma/client": "6.4.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "@typescript-eslint/parser": "^8.71.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.8",
+    "globals": "^17.13.0",
+    "prisma": "6.4.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}
