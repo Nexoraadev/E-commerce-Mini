@@ -96,4 +96,29 @@ export const orderService = {
       },
     });
   },
+
+  async cancelOrder(orderId: string) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { orderItems: true },
+    });
+    if (!order) throw new Error("Order tidak ditemukan");
+    if (order.orderStatus === OrderStatus.CANCELLED) return order;
+    if (order.orderStatus === OrderStatus.COMPLETED)
+      throw new Error("Order yang sudah selesai tidak bisa dibatalkan");
+
+    return prisma.$transaction(async (tx) => {
+      for (const item of order.orderItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stok: { increment: item.quantity } },
+        });
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: { orderStatus: OrderStatus.CANCELLED },
+      });
+    });
+  },
 };

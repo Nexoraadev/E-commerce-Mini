@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { orderRepository } from "@/repositories/order.repository";
+import { orderService } from "@/services/order.service";
 import { getAuthSession } from "@/lib/auth";
 import type { OrderStatus } from "@prisma/client";
 
@@ -44,7 +45,12 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
     }
 
-    const order = await orderRepository.updateStatus(id, orderStatus);
+    let order;
+    if (orderStatus === "CANCELLED") {
+      order = await orderService.cancelOrder(id);
+    } else {
+      order = await orderRepository.updateStatus(id, orderStatus);
+    }
     return NextResponse.json({ order });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal update status" }, { status: 400 });

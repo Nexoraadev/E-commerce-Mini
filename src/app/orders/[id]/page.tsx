@@ -250,6 +250,7 @@ export default function OrderDetailPage() {
   const [copied, setCopied] = useState(false);
   const [copiedVA, setCopiedVA] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -291,6 +292,26 @@ export default function OrderDetailPage() {
       setError("Terjadi kesalahan koneksi.");
     } finally {
       setPaying(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    if (!order) return;
+    const ok = window.confirm(
+      "Yakin ingin membatalkan order ini? Stok akan dikembalikan dan aksi tidak bisa dibatalkan."
+    );
+    if (!ok) return;
+    setCancelling(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Gagal membatalkan order"); return; }
+      setOrder({ ...order, ...data.order, orderStatus: "CANCELLED" });
+    } catch {
+      setError("Terjadi kesalahan koneksi.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -361,18 +382,28 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {order.orderStatus !== "CANCELLED" && order.orderStatus !== "COMPLETED" && (
-                <button className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50">
-                  <XCircle size={14} /> Cancel Order
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling || paying}
+                  className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-bold text-red-500 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {cancelling ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                  {cancelling ? "Membatalkan…" : "Cancel Order"}
                 </button>
               )}
               {(order.orderStatus === "PROCESSING" || order.orderStatus === "PENDING") && (
-                <button className="flex items-center gap-2 rounded-xl bg-[#1e3a8a] px-4 py-2 text-xs font-bold text-white hover:bg-[#1e40af]">
+                <button className="flex items-center gap-2 rounded-xl bg-[#1e3a8a] px-4 py-2 text-xs font-bold text-white hover:bg-[#1e40af] transition">
                   <Truck size={14} /> Track Order
                 </button>
               )}
             </div>
+            {error && order.orderStatus !== "CANCELLED" && order.orderStatus !== "COMPLETED" && (
+              <div className="mt-2 flex items-start gap-1.5 rounded-xl bg-red-50 p-2.5 text-[11px] text-red-600">
+                <AlertCircle size={11} /> {error}
+              </div>
+            )}
           </div>
         </div>
 
