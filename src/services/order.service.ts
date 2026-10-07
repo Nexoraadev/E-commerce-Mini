@@ -1,8 +1,23 @@
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validations/checkout";
 
 function createOrderNumber() {
   return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`;
+}
+
+const VA_PREFIX: Record<string, string> = {
+  BCA:     "8808",
+  MANDIRI: "8810",
+  BNI:     "8811",
+  BRI:     "8812",
+};
+
+function generateVirtualAccount(bank: string): string {
+  const prefix = VA_PREFIX[bank.toUpperCase()] ?? "8800";
+  const suffix1 = Date.now().toString().slice(-6);
+  const suffix2 = Math.floor(Math.random() * 1000000).toString().padStart(6, "0");
+  return `${prefix}${suffix1}${suffix2}`;
 }
 
 export const orderService = {
@@ -31,6 +46,10 @@ export const orderService = {
         };
       });
 
+      const isVA = data.paymentMethod === "Virtual Account";
+      const selectedBank: string | null = isVA ? data.bank ?? "BCA" : null;
+      const vaNumber = isVA && selectedBank ? generateVirtualAccount(selectedBank) : null;
+
       const order = await tx.order.create({
         data: {
           orderNumber: createOrderNumber(),
@@ -42,6 +61,8 @@ export const orderService = {
           notes: data.notes,
           paymentMethod: data.paymentMethod,
           totalAmount,
+          bank: selectedBank ?? undefined,
+          virtualAccount: vaNumber,
           orderItems: { create: orderItemsData },
         },
         include: { orderItems: true },
@@ -55,6 +76,24 @@ export const orderService = {
       }
 
       return order;
+    });
+  },
+
+  async markPaid(orderId: string) {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new Error("Order tidak ditemukan");
+    if (order.paymentStatus === PaymentStatus.PAID) return order;
+
+    const nextOrderStatus =
+      order.orderStatus === OrderStatus.PENDING ? OrderStatus.PROCESSING : order.orderStatus;
+
+    return prisma.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: PaymentStatus.PAID,
+        paidAt: new Date(),
+        orderStatus: nextOrderStatus,
+      },
     });
   },
 };

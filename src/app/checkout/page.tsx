@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import {
   ChevronRight, Home, Check, Loader2, AlertCircle,
   Package, ShieldCheck, RotateCcw, Truck, Zap, CreditCard, Banknote,
-  MapPin, Phone, Mail, User,
+  MapPin, Phone, Mail, User, Copy, Clock,
 } from "lucide-react";
 import { useCartStore } from "@/store/cart-store";
 import { formatRupiah } from "@/lib/utils/format";
@@ -16,6 +16,7 @@ import { formatRupiah } from "@/lib/utils/format";
 type Step = 1 | 2 | 3;
 type ShippingMethod = "standard" | "express";
 type PaymentMethod = "Virtual Account" | "Bank Transfer" | "Cash";
+type VABank = "BCA" | "MANDIRI" | "BNI" | "BRI";
 
 const STEPS = [
   { n: 1, label: "Cart" },
@@ -24,12 +25,23 @@ const STEPS = [
 ];
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; badge: string; desc: string; icon: React.ElementType }[] = [
-  { value: "Virtual Account", label: "BCA Virtual Account", badge: "Instant", desc: "Real-time automated verification via BCA, Mandiri, BNI, or BRI", icon: Zap },
-  { value: "Bank Transfer", label: "Direct Bank Transfer", badge: "", desc: "Manual receipt upload verified within 15 minutes", icon: CreditCard },
-  { value: "Cash", label: "Cash on Delivery (COD)", desc: "Pay in cash directly to the courier upon arrival", badge: "", icon: Banknote },
+  { value: "Virtual Account", label: "Virtual Account (Transfer Otomatis)", badge: "Instant", desc: "Pilih bank: BCA / Mandiri / BNI / BRI. Nomor VA dibuat otomatis.", icon: Zap },
+  { value: "Bank Transfer", label: "Direct Bank Transfer Manual", badge: "", desc: "Transfer manual ke rekening toko. Verifikasi 15 menit kerja.", icon: CreditCard },
+  { value: "Cash", label: "Cash on Delivery (COD)", desc: "Bayar di tempat saat kurir sampai.", badge: "", icon: Banknote },
 ];
 
-type OrderResult = { id: string; orderNumber: string; totalAmount: number; paymentMethod: string };
+const VA_BANK_LIST: { value: VABank; name: string; prefix: string; color: string }[] = [
+  { value: "BCA",     name: "BCA",        prefix: "8808", color: "bg-blue-600" },
+  { value: "MANDIRI", name: "Bank Mandiri", prefix: "8810", color: "bg-blue-800" },
+  { value: "BNI",     name: "BNI 46",     prefix: "8811", color: "bg-orange-500" },
+  { value: "BRI",     name: "BRI",        prefix: "8812", color: "bg-indigo-700" },
+];
+
+type OrderResult = {
+  id: string; orderNumber: string; totalAmount: number;
+  paymentMethod: string; bank: string | null; virtualAccount: string | null;
+  orderStatus: string; paymentStatus: string;
+};
 
 /* ── Progress Bar ── */
 function StepProgress({ current }: { current: Step }) {
@@ -132,6 +144,9 @@ export default function CheckoutPage() {
   });
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("standard");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Virtual Account");
+  const [vaBank, setVaBank] = useState<VABank>("BCA");
+  const [copying, setCopying] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -170,6 +185,7 @@ export default function CheckoutPage() {
           shippingAddress: fullAddress || form.shippingAddress || "Indonesia",
           notes: form.notes || null,
           paymentMethod,
+          bank: paymentMethod === "Virtual Account" ? vaBank : null,
           cartItems: items.map((i) => ({ productId: i.id, quantity: i.quantity })),
         }),
       });
@@ -182,43 +198,230 @@ export default function CheckoutPage() {
     finally { setLoading(false); }
   };
 
+  const copyVA = async () => {
+    if (!order?.virtualAccount) return;
+    try {
+      await navigator.clipboard.writeText(order.virtualAccount);
+      setCopying(true);
+      setTimeout(() => setCopying(false), 2000);
+    } catch { /* ignore */ }
+  };
+
+  const simulatePay = async () => {
+    if (!order) return;
+    setPaying(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/orders/${order.id}/pay`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Simulasi bayar gagal"); return; }
+      setOrder({ ...order, ...data.order, paymentStatus: "PAID", orderStatus: data.order?.orderStatus ?? order.orderStatus });
+    } catch { setError("Terjadi kesalahan koneksi."); }
+    finally { setPaying(false); }
+  };
+
   /* ── Success Screen ── */
   if (step === 3 && order) {
+    const isVA = order.paymentMethod === "Virtual Account";
+    const isPaid = order.paymentStatus === "PAID";
+    const bankInfo = VA_BANK_LIST.find((b) => b.value === order.bank);
+
     return (
       <div className="min-h-dvh bg-[#f8f9fc] pb-24 md:pb-0">
-        <div className="mx-auto max-w-lg px-4 py-12">
-          <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
-              <Check size={40} className="text-emerald-600" />
+        <div className="mx-auto max-w-2xl px-4 py-10 space-y-5">
+          {/* ── Order Success Banner ── */}
+          <div className="rounded-2xl bg-white p-7 text-center shadow-sm">
+            <div className={`mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full ${isPaid ? "bg-emerald-100" : "bg-amber-100"}`}>
+              {isPaid ? <Check size={40} className="text-emerald-600" /> : <Clock size={40} className="text-amber-600" />}
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Order Confirmed! 🎉</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900">
+              {isPaid ? "Pembayaran Berhasil! 🎉" : "Order Berhasil — Silakan Selesaikan Pembayaran"}
+            </h1>
             <p className="mt-2 text-sm text-slate-500">
-              Your order has been placed successfully. You will receive a confirmation email shortly.
+              {isPaid
+                ? "Pesanan kamu sudah dibayar dan sedang diproses oleh penjual."
+                : isVA
+                ? "Transfer sesuai nominal tepat di bawah ini ke nomor Virtual Account untuk verifikasi otomatis."
+                : "Simpan bukti transfer untuk proses verifikasi manual."}
             </p>
+          </div>
 
-            <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-4 text-left space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Order Number</span>
-                <span className="font-extrabold text-[#1e3a8a]">{order.orderNumber}</span>
+          {/* ── VA Card (hanya jika Virtual Account & belum bayar) ── */}
+          {isVA && !isPaid && bankInfo && (
+            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+              <div className={`${bankInfo.color} px-6 py-3 flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <CreditCard size={18} className="text-white" />
+                  <span className="font-extrabold text-white">{bankInfo.name} Virtual Account</span>
+                </div>
+                <span className="rounded-full bg-white/20 px-3 py-0.5 text-[10px] font-bold text-white">
+                  Prefix {bankInfo.prefix}
+                </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Payment Method</span>
-                <span className="font-semibold">{order.paymentMethod}</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 pt-3 text-sm">
-                <span className="font-bold text-slate-700">Total Paid</span>
-                <span className="text-lg font-extrabold text-[#1e3a8a]">{formatRupiah(Number(order.totalAmount))}</span>
+
+              <div className="p-6 space-y-5">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Nomor Virtual Account</p>
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-[#1e3a8a]/40 bg-blue-50 px-5 py-4">
+                    <p className="font-mono text-2xl md:text-3xl font-extrabold tracking-wider text-[#1e3a8a]">
+                      {order.virtualAccount}
+                    </p>
+                    <button
+                      onClick={copyVA}
+                      className="flex shrink-0 items-center gap-1.5 rounded-xl bg-[#1e3a8a] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#1e40af] transition"
+                    >
+                      <Copy size={13} /> {copying ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Tagihan</p>
+                  <div className="mt-2 rounded-xl bg-emerald-50 px-5 py-4 flex items-center justify-between">
+                    <p className="text-sm text-emerald-700 font-semibold">Bayar SESUAI nominal agar terverifikasi otomatis</p>
+                    <p className="text-2xl font-extrabold text-emerald-700">
+                      {formatRupiah(Number(order.totalAmount))}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                    <AlertCircle size={14} /> Instruksi Pembayaran
+                  </p>
+                  <ul className="text-xs text-amber-700 space-y-1 pl-5 list-disc">
+                    <li>Buka aplikasi mobile banking / ATM / internet banking {bankInfo.name}</li>
+                    <li>Pilih menu Transfer → Virtual Account / ke Rekening {bankInfo.name}</li>
+                    <li>Masukkan nomor VA: <span className="font-mono font-bold">{order.virtualAccount}</span></li>
+                    <li>Konfirmasi — nominal tagihan akan muncul otomatis</li>
+                    <li>Jumlahkan pas: {formatRupiah(Number(order.totalAmount))}, lalu Kirim / Bayar</li>
+                  </ul>
+                </div>
+
+                {/* Simulasi Tombol Bayar */}
+                <button
+                  onClick={simulatePay}
+                  disabled={paying}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 text-sm font-extrabold text-white hover:bg-emerald-700 transition disabled:opacity-60 active:scale-[0.99]"
+                >
+                  {paying ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />}
+                  {paying ? "Memproses Pembayaran…" : "💡 Simulasikan: Saya Sudah Bayar"}
+                </button>
+                <p className="text-center text-[10px] text-slate-400">
+                  ⚡ Simulasi demo — tekan tombol untuk menandai VA terbayar & pesanan otomatis masuk Processing
+                </p>
               </div>
             </div>
+          )}
 
-            <div className="mt-6 flex gap-3">
-              <Link href="/orders" className="flex-1 rounded-xl border-2 border-[#1e3a8a] py-3 text-center text-sm font-bold text-[#1e3a8a] hover:bg-[#1e3a8a] hover:text-white">
-                My Orders
-              </Link>
-              <Link href="/" className="flex-1 rounded-xl bg-[#1e3a8a] py-3 text-center text-sm font-bold text-white hover:bg-[#1e40af]">
-                Continue Shopping
-              </Link>
+          {/* ── Sudah Bayar VA Summary ── */}
+          {isVA && isPaid && (
+            <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-5 text-left">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-emerald-600 p-2.5">
+                  <Check size={18} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-extrabold text-emerald-800">Pembayaran Virtual Account Diverifikasi</p>
+                  <p className="mt-1 text-xs text-emerald-700">
+                    {bankInfo?.name} VA · {order.virtualAccount} · Status otomatis PAID
+                  </p>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* ── Bank Transfer Manual / COD summary ── */}
+          {!isVA && (
+            <div className="rounded-2xl bg-white shadow-sm p-6 text-left space-y-3">
+              <div className="flex items-center gap-2">
+                <CreditCard size={16} className="text-[#1e3a8a]" />
+                <p className="font-extrabold text-slate-800">Metode Pembayaran: {order.paymentMethod}</p>
+              </div>
+              {order.paymentMethod === "Bank Transfer" && !isPaid && (
+                <div className="rounded-xl bg-blue-50 p-4 text-xs text-blue-700 space-y-1.5">
+                  <p className="font-bold">📌 Rekening Tujuan Toko (contoh simulasi):</p>
+                  <p>🏦 Bank BCA · 0123456789 · a.n. MiniShop Indonesia</p>
+                  <p>💸 Total Transfer: <span className="font-extrabold">{formatRupiah(Number(order.totalAmount))}</span></p>
+                  <button
+                    onClick={simulatePay}
+                    disabled={paying}
+                    className="mt-2 w-full rounded-xl bg-blue-700 px-3 py-2.5 text-white font-bold hover:bg-blue-800 disabled:opacity-60"
+                  >
+                    {paying ? <Loader2 size={13} className="inline animate-spin" /> : "💡 Simulasikan Bukti Transfer Sudah Diverifikasi"}
+                  </button>
+                </div>
+              )}
+              {order.paymentMethod === "Cash" && !isPaid && (
+                <div className="rounded-xl bg-amber-50 p-4 text-xs text-amber-700 space-y-1.5">
+                  <p className="font-bold">💰 COD — Bayar saat barang sampai</p>
+                  <p>Siapkan uang tunai pas: <span className="font-extrabold">{formatRupiah(Number(order.totalAmount))}</span> untuk serah terima dengan kurir.</p>
+                  <button
+                    onClick={simulatePay}
+                    disabled={paying}
+                    className="mt-2 w-full rounded-xl bg-amber-700 px-3 py-2.5 text-white font-bold hover:bg-amber-800 disabled:opacity-60"
+                  >
+                    {paying ? <Loader2 size={13} className="inline animate-spin" /> : "💡 Simulasikan: COD Sudah Dibayar"}
+                  </button>
+                </div>
+              )}
+              {isPaid && (
+                <div className="rounded-xl bg-emerald-50 p-4 text-xs text-emerald-700">
+                  <Check size={13} className="inline mr-1" /> Status Pembayaran: SUDAH BAYAR
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Order Summary ── */}
+          <div className="rounded-xl border border-slate-100 bg-white p-5 text-left space-y-3">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Ringkasan Pesanan</p>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Order Number</span>
+              <span className="font-extrabold text-[#1e3a8a]">#{order.orderNumber}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Status Order</span>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                order.orderStatus === "COMPLETED" ? "bg-emerald-100 text-emerald-700" :
+                order.orderStatus === "PROCESSING" ? "bg-blue-100 text-blue-700" :
+                order.orderStatus === "CANCELLED" ? "bg-red-100 text-red-600" :
+                "bg-amber-100 text-amber-700"
+              }`}>
+                {order.orderStatus}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Status Pembayaran</span>
+              <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                {isPaid ? "✓ SUDAH BAYAR" : "⏳ BELUM BAYAR"}
+              </span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-3 text-sm">
+              <span className="font-bold text-slate-700">Total Tagihan</span>
+              <span className="text-lg font-extrabold text-[#1e3a8a]">{formatRupiah(Number(order.totalAmount))}</span>
+            </div>
+            {error && (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
+                <AlertCircle size={15} /> {error}
+              </div>
+            )}
+          </div>
+
+          {/* ── CTA Buttons ── */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href={`/orders/${order.id}`}
+              className="flex-1 rounded-xl border-2 border-[#1e3a8a] py-3.5 text-center text-sm font-bold text-[#1e3a8a] hover:bg-[#1e3a8a] hover:text-white transition"
+            >
+              📋 Lihat Detail Order Lengkap
+            </Link>
+            <Link
+              href="/"
+              className="flex-1 rounded-xl bg-[#1e3a8a] py-3.5 text-center text-sm font-bold text-white hover:bg-[#1e40af] transition"
+            >
+              🛍️ Lanjut Belanja
+            </Link>
           </div>
         </div>
       </div>
@@ -360,10 +563,10 @@ export default function CheckoutPage() {
 
               {/* 4. Payment Method */}
               <Section number={4} title="Payment Method">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {PAYMENT_METHODS.map((pm) => (
+                  <div key={pm.value}>
                     <label
-                      key={pm.value}
                       className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-4 transition-all ${
                         paymentMethod === pm.value
                           ? "border-[#1e3a8a] bg-blue-50"
@@ -391,7 +594,34 @@ export default function CheckoutPage() {
                         <p className="text-xs text-slate-500">{pm.desc}</p>
                       </div>
                     </label>
-                  ))}
+
+                    {/* VA Bank Picker — hanya muncul jika Virtual Account dipilih */}
+                    {pm.value === "Virtual Account" && paymentMethod === "Virtual Account" && (
+                      <div className="mt-3 pl-14 md:pl-24 space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="text-xs font-bold text-slate-700">Pilih Bank Virtual Account Anda:</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {VA_BANK_LIST.map((bank) => (
+                            <button
+                              type="button"
+                              key={bank.value}
+                              onClick={() => setVaBank(bank.value)}
+                              className={`rounded-xl border-2 py-3 text-sm font-extrabold transition-all ${
+                                vaBank === bank.value
+                                  ? `border-transparent ${bank.color} text-white shadow-md`
+                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              {bank.name}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                          <Check size={10} className="text-emerald-500" /> Nomor Virtual Account dibuat otomatis saat order dibuat.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
                 </div>
                 <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400">
                   <ShieldCheck size={11} /> Payments are securely encrypted. Simulated demo environment — no actual card or funds are debited.

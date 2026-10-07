@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ChevronRight, Home, Check, Loader2, Package,
-  MapPin, CreditCard, Printer, Phone, HelpCircle,
+  MapPin, CreditCard, Printer, Phone, HelpCircle, AlertCircle,
   Truck, Copy, ArrowLeft, Clock, CheckCircle2,
   Circle, XCircle,
 } from "lucide-react";
@@ -36,6 +36,9 @@ type Order = {
   orderStatus: string;
   paymentStatus: string;
   paymentMethod: string;
+  bank?: string | null;
+  virtualAccount?: string | null;
+  paidAt?: string | null;
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -245,6 +248,9 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedVA, setCopiedVA] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch(`/api/orders/${id}`)
@@ -263,6 +269,29 @@ export default function OrderDetailPage() {
     navigator.clipboard.writeText(order.orderNumber);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyVA = () => {
+    if (!order?.virtualAccount) return;
+    navigator.clipboard.writeText(order.virtualAccount);
+    setCopiedVA(true);
+    setTimeout(() => setCopiedVA(false), 2000);
+  };
+
+  const simulatePay = async () => {
+    if (!order) return;
+    setPaying(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/orders/${order.id}/pay`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Simulasi bayar gagal"); return; }
+      setOrder({ ...order, ...data.order, paymentStatus: "PAID" });
+    } catch {
+      setError("Terjadi kesalahan koneksi.");
+    } finally {
+      setPaying(false);
+    }
   };
 
   if (loading) {
@@ -453,30 +482,84 @@ export default function OrderDetailPage() {
                 <h2 className="text-sm font-extrabold text-slate-800">Payment Details</h2>
                 <CreditCard size={15} className="text-slate-400" />
               </div>
-              <div className="space-y-2.5 px-5 py-4 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Method</span>
-                  <span className="flex items-center gap-1.5 font-semibold text-slate-800">
+              <div className="space-y-3 px-5 py-4 text-sm">
+                <div className="flex justify-between items-start">
+                  <span className="text-slate-500">Payment Method</span>
+                  <span className="flex items-center gap-1.5 font-semibold text-slate-800 text-right">
                     <span className="h-2 w-2 rounded-full bg-[#1e3a8a]" />
                     {order.paymentMethod}
                   </span>
                 </div>
-                <div className="flex justify-between">
+
+                {/* Bank + VA — jika virtual account */}
+                {order.bank && (
+                  <div className="flex justify-between items-start">
+                    <span className="text-slate-500">Bank Tujuan</span>
+                    <span className="font-extrabold text-slate-800">{order.bank}</span>
+                  </div>
+                )}
+                {order.virtualAccount && (
+                  <div className="rounded-xl border border-dashed border-[#1e3a8a]/40 bg-blue-50 p-3 space-y-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nomor Virtual Account</p>
+                        <p className="font-mono text-xl font-extrabold tracking-wider text-[#1e3a8a]">{order.virtualAccount}</p>
+                      </div>
+                      <button
+                        onClick={copyVA}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-[#1e3a8a] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#1e40af] transition"
+                      >
+                        <Copy size={11} /> {copiedVA ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-start">
                   <span className="text-slate-500">Transaction ID</span>
-                  <span className="font-mono text-xs font-semibold text-slate-700">
+                  <span className="font-mono text-xs font-semibold text-slate-700 text-right">
                     TXN-MC-{order.id.slice(0, 6).toUpperCase()}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start">
                   <span className="text-slate-500">Payment Status</span>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${paymentStatusColor(order.paymentStatus)}`}>
                     {paymentStatusLabel(order.paymentStatus)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Paid Timestamp</span>
-                  <span className="text-xs text-slate-700">{formatDate(order.updatedAt)}</span>
+                <div className="flex justify-between items-start">
+                  <span className="text-slate-500">{order.paidAt ? "Paid At" : "Last Updated"}</span>
+                  <span className="text-xs text-slate-700 text-right">
+                    {formatDate(order.paidAt ?? order.updatedAt)}
+                  </span>
                 </div>
+
+                {/* Simulasi Tombol Bayar — jika belum PAID */}
+                {order.paymentStatus !== "PAID" && (
+                  <>
+                    {error && (
+                      <div className="flex items-start gap-2 rounded-xl bg-red-50 p-3 text-xs text-red-700">
+                        <AlertCircle size={13} /> {error}
+                      </div>
+                    )}
+                    <button
+                      onClick={simulatePay}
+                      disabled={paying}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-xs font-extrabold text-white hover:bg-emerald-700 transition disabled:opacity-60 active:scale-[0.99]"
+                    >
+                      {paying ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                      {paying ? "Memproses…" : "💡 Simulasikan Pembayaran Sudah Diterima"}
+                    </button>
+                    <p className="text-center text-[10px] text-slate-400 -mt-1">
+                      Demo app — ini akan menandai pembayaran PAID dan status order otomatis PROCESSING
+                    </p>
+                  </>
+                )}
+                {order.paymentStatus === "PAID" && order.virtualAccount && (
+                  <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700 flex items-start gap-2">
+                    <Check size={13} /> VA diverifikasi otomatis. Dana sudah masuk rekening MiniShop.
+                  </div>
+                )}
               </div>
               <div className="border-t border-slate-100 px-5 py-3">
                 <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">

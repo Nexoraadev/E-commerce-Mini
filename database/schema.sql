@@ -108,6 +108,9 @@ CREATE TABLE orders (
     "paymentStatus"  "PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "orderStatus"    "OrderStatus"   NOT NULL DEFAULT 'PENDING',
     "totalAmount"    DECIMAL(12, 2)  NOT NULL,
+    bank             VARCHAR(50),                       -- BCA / MANDIRI / BNI / BRI
+    "virtualAccount" VARCHAR(50),                       -- Nomor VA (contoh: 8808123456789012)
+    "paidAt"         TIMESTAMP(3),                      -- Waktu bayar terverifikasi
     "createdAt"      TIMESTAMP(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt"      TIMESTAMP(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

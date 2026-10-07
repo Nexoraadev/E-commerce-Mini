@@ -85,6 +85,9 @@ model Order {
   paymentStatus   PaymentStatus @default(PENDING)
   orderStatus     OrderStatus   @default(PENDING)
   totalAmount     Decimal
+  bank            String?
+  virtualAccount  String?
+  paidAt          DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
